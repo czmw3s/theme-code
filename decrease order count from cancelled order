@@ -1,0 +1,21 @@
+//decrease order count from cancelled order
+add_action( 'woocommerce_order_status_changed', 'update_product_total_sales_on_cancelled_orders', 9, 4 );
+function update_product_total_sales_on_cancelled_orders( $order_id, $old_status, $new_status, $order ){
+    if ( in_array( $old_status, array('processing', 'completed') ) && 'cancelled' === $new_status
+    && ! $order->get_meta('_order_is_canceled') ) {
+
+        // Loop through order items
+        foreach ( $order->get_items() as $item ) {
+            // Get the WC_product object (and for product variation, the parent variable product)
+            $product = $item->get_variation_id() > 0 ? wc_get_product( $item->get_product_id() ) : $item->get_product();
+
+            $total_sales   = (int) $product->get_total_sales(); // get product total sales
+            $item_quantity = (int) $item->get_quantity(); // Get order item quantity
+
+            $product->set_total_sales( $total_sales - $item_quantity ); // Decrease product total sales
+            $product->save(); // save to database
+        }
+        $order->update_meta_data('_order_is_canceled', '1'); // Flag the order as been cancelled to avoid repetitions
+        $order->save(); // save to database
+    }
+}
